@@ -108,8 +108,110 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
 }
 
+/* Header Mobile Menu */
+.mobile-menu-btn {
+  display: none;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--foreground);
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  line-height: 1;
+}
+
+.desktop-menu {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex: 1;
+}
+
+@media (max-width: 768px) {
+  .mobile-menu-btn {
+    display: block;
+  }
+  .desktop-menu {
+    display: none;
+    flex-direction: column;
+    width: 100%;
+    align-items: flex-start;
+    padding-top: 1rem;
+    gap: 1rem;
+    border-top: 1px solid var(--border);
+    margin-top: 1rem;
+  }
+  .desktop-menu.open {
+    display: flex;
+  }
+  .desktop-nav {
+    flex-direction: column !important;
+    width: 100%;
+    gap: 0.5rem !important;
+  }
+  .desktop-nav a {
+    display: block;
+    width: 100%;
+    padding: var(--spacing-md);
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 8px;
+    transition: background 0.2s;
+  }
+  .desktop-nav a:active {
+    background: rgba(255, 255, 255, 0.08);
+  }
+  .mobile-user-section {
+    width: 100%;
+    justify-content: space-between !important;
+    padding: var(--spacing-md);
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    margin-top: 0.5rem;
+  }
+}
+
 .container {
   max-width: 1200px;
   margin: 0 auto;
   padding: 0 var(--spacing-md);
+}
+
+/* Mobile Responsive Tables */
+@media (max-width: 768px) {
+  .responsive-table, .responsive-table tbody, .responsive-table tr, .responsive-table td {
+    display: block;
+    width: 100%;
+  }
+  .responsive-table thead {
+    display: none;
+  }
+  .responsive-table tr {
+    margin-bottom: var(--spacing-md);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.02);
+  }
+  .responsive-table td {
+    border-bottom: 1px solid var(--border);
+    padding: var(--spacing-md);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    text-align: right;
+  }
+  .responsive-table td:last-child {
+    border-bottom: none;
+  }
+  .responsive-table td::before {
+    content: attr(data-label);
+    float: left;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    margin-right: 1rem;
+    text-align: left;
+  }
 }

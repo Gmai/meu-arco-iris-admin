@@ -23,10 +23,9 @@ export async function POST(request: Request) {
     }
 
     const formData = await request.formData();
-    const invoiceFiles = formData.getAll('invoices') as File[];
-    const productFiles = formData.getAll('products') as File[];
+    const files = formData.getAll('images') as File[];
 
-    if (invoiceFiles.length === 0 && productFiles.length === 0) {
+    if (files.length === 0) {
       return NextResponse.json({ error: 'Nenhum arquivo enviado' }, { status: 400 });
     }
 
@@ -72,8 +71,7 @@ export async function POST(request: Request) {
       });
     };
 
-    for (const file of invoiceFiles) await processFile(file, 'INVOICE');
-    for (const file of productFiles) await processFile(file, 'PRODUCT');
+    for (const file of files) await processFile(file, 'GENERAL');
 
     // Integração com Gemini
     if (!process.env.GEMINI_API_KEY) {

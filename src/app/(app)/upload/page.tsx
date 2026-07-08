@@ -6,11 +6,8 @@ import { ClickableImage } from "@/components/ClickableImage";
 
 export default function UploadPage() {
   const router = useRouter();
-  const [invoiceFiles, setInvoiceFiles] = useState<File[]>([]);
-  const [productFiles, setProductFiles] = useState<File[]>([]);
-  
-  const [invoicePreviews, setInvoicePreviews] = useState<string[]>([]);
-  const [productPreviews, setProductPreviews] = useState<string[]>([]);
+  const [files, setFiles] = useState<File[]>([]);
+  const [previews, setPreviews] = useState<string[]>([]);
 
   const [isUploading, setIsUploading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -21,32 +18,20 @@ export default function UploadPage() {
 
   // Generate previews
   useEffect(() => {
-    const urls = invoiceFiles.map(f => URL.createObjectURL(f));
-    setInvoicePreviews(urls);
+    const urls = files.map(f => URL.createObjectURL(f));
+    setPreviews(urls);
     return () => urls.forEach(URL.revokeObjectURL);
-  }, [invoiceFiles]);
+  }, [files]);
 
-  useEffect(() => {
-    const urls = productFiles.map(f => URL.createObjectURL(f));
-    setProductPreviews(urls);
-    return () => urls.forEach(URL.revokeObjectURL);
-  }, [productFiles]);
-
-  const handleInvoiceUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      setInvoiceFiles(Array.from(e.target.files));
-    }
-  };
-
-  const handleProductUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      setProductFiles(Array.from(e.target.files));
+      setFiles(Array.from(e.target.files));
     }
   };
 
   const handleAnalyze = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (invoiceFiles.length === 0 && productFiles.length === 0) {
+    if (files.length === 0) {
       alert("Por favor, envie pelo menos uma foto para a validação.");
       return;
     }
@@ -55,8 +40,7 @@ export default function UploadPage() {
     
     try {
       const formData = new FormData();
-      invoiceFiles.forEach(file => formData.append('invoices', file));
-      productFiles.forEach(file => formData.append('products', file));
+      files.forEach(file => formData.append('images', file));
 
       const response = await fetch('/api/upload', {
         method: 'POST',
@@ -173,7 +157,8 @@ export default function UploadPage() {
 
           <div style={{marginTop: 'var(--spacing-2xl)'}}>
             <h3 style={styles.sectionTitle}>Tabela de Comparação (Editável)</h3>
-            <table style={styles.table}>
+            <div style={{ width: '100%', overflowX: 'auto', display: 'block' }}>
+              <table className="responsive-table" style={styles.table}>
               <thead>
                 <tr>
                   <th style={styles.th}>Produto</th>
@@ -190,32 +175,34 @@ export default function UploadPage() {
 
                   return (
                     <tr key={idx} style={styles.tr}>
-                      <td style={styles.tdItem}>{item.name}</td>
-                      <td style={styles.tdItem}>
+                      <td data-label="Produto" style={styles.tdItem}>{item.name}</td>
+                      <td data-label="Faturado (Nota)" style={styles.tdItem}>
                         <div style={styles.inputWrapper}>
                           <input 
                             type="number" 
                             style={styles.numberInput} 
                             value={item.invQtd} 
                             onChange={(e) => updateItem(idx, 'invQtd', Number(e.target.value))}
+                            onFocus={(e) => e.target.select()}
                             min={0}
                             title="Editar quantidade na nota"
                           />
                         </div>
                       </td>
-                      <td style={styles.tdItem}>
+                      <td data-label="Detectado (Foto)" style={styles.tdItem}>
                         <div style={styles.inputWrapper}>
                           <input 
                             type="number" 
                             style={styles.numberInput} 
                             value={item.detQtd} 
                             onChange={(e) => updateItem(idx, 'detQtd', Number(e.target.value))}
+                            onFocus={(e) => e.target.select()}
                             min={0}
                             title="Editar quantidade detectada"
                           />
                         </div>
                       </td>
-                      <td style={styles.tdItem}>
+                      <td data-label="Status Atual" style={styles.tdItem}>
                         {status === 'ok' && <span style={styles.statusOk}>✅ OK</span>}
                         {status === 'faltando' && <span style={styles.statusAlert}>❌ Faltando ({item.invQtd - item.detQtd})</span>}
                         {status === 'sobrando' && <span style={styles.statusWarn}>⚠️ Sobrando ({item.detQtd - item.invQtd})</span>}
@@ -225,16 +212,14 @@ export default function UploadPage() {
                 })}
               </tbody>
             </table>
+            </div>
           </div>
 
           <div style={{marginTop: 'var(--spacing-2xl)'}}>
             <h3 style={styles.sectionTitle}>Fotos Enviadas (Clique para Zoom)</h3>
             <div style={styles.previewGrid}>
-              {invoicePreviews.map((src, i) => (
-                <ClickableImage key={'inv-'+i} src={src} alt="Nota" style={styles.previewImage} />
-              ))}
-              {productPreviews.map((src, i) => (
-                <ClickableImage key={'prod-'+i} src={src} alt="Produto" style={styles.previewImage} />
+              {previews.map((src, i) => (
+                <ClickableImage key={i} src={src} alt="Foto enviada" style={styles.previewImage} />
               ))}
             </div>
           </div>
@@ -263,35 +248,17 @@ export default function UploadPage() {
         <form onSubmit={handleAnalyze} style={styles.form}>
           
           <div style={styles.section}>
-            <h2 style={styles.sectionTitle}>1. Foto da Nota Fiscal</h2>
-            <p style={styles.sectionDesc}>Faça upload da imagem da nota ou escaneie o código de barras.</p>
+            <h2 style={styles.sectionTitle}>Fotos do Pedido</h2>
+            <p style={styles.sectionDesc}>Faça upload das imagens da nota fiscal e dos produtos juntos.</p>
             <div style={styles.uploadArea}>
-              <input type="file" accept="image/*" onChange={handleInvoiceUpload} style={styles.fileInput} multiple />
+              <input type="file" accept="image/*" onChange={handleUpload} style={styles.fileInput} multiple />
               <div style={styles.uploadText}>
-                {invoiceFiles.length > 0 ? `${invoiceFiles.length} arquivo(s) selecionado(s)` : "Clique para selecionar ou arraste o arquivo"}
+                {files.length > 0 ? `${files.length} arquivo(s) selecionado(s)` : "Clique para selecionar ou arraste as fotos aqui"}
               </div>
             </div>
-            {invoicePreviews.length > 0 && (
+            {previews.length > 0 && (
               <div style={styles.previewGrid}>
-                {invoicePreviews.map((src, i) => (
-                  <ClickableImage key={i} src={src} alt="Preview" style={styles.previewImage} />
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div style={styles.section}>
-            <h2 style={styles.sectionTitle}>2. Fotos dos Produtos Físicos (Opcional)</h2>
-            <p style={styles.sectionDesc}>Faça upload das fotos com os itens físicos. Deixe em branco se a nota e os produtos estiverem na mesma imagem acima.</p>
-            <div style={styles.uploadArea}>
-              <input type="file" accept="image/*" multiple onChange={handleProductUpload} style={styles.fileInput} />
-              <div style={styles.uploadText}>
-                {productFiles.length > 0 ? `${productFiles.length} arquivo(s) selecionado(s)` : "Clique para selecionar ou arraste os arquivos"}
-              </div>
-            </div>
-            {productPreviews.length > 0 && (
-              <div style={styles.previewGrid}>
-                {productPreviews.map((src, i) => (
+                {previews.map((src, i) => (
                   <ClickableImage key={i} src={src} alt="Preview" style={styles.previewImage} />
                 ))}
               </div>

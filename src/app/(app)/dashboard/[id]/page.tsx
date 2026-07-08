@@ -7,6 +7,7 @@ import { authOptions } from "@/lib/auth";
 import { DeleteOrderButton } from "@/components/DeleteOrderButton";
 import { DeleteImageButton } from "@/components/DeleteImageButton";
 import { ClickableImage } from "@/components/ClickableImage";
+import { OrderDetailsTable } from "@/components/OrderDetailsTable";
 
 const storage = new Storage();
 const bucketName = process.env.GCS_BUCKET_NAME || '';
@@ -69,9 +70,6 @@ export default async function OrderDetailsPage({ params }: { params: Promise<{ i
     }))
   );
 
-  const invoiceImages = resolvedImages.filter(i => i.type === 'INVOICE');
-  const productImages = resolvedImages.filter(i => i.type === 'PRODUCT');
-
   // Mesclar itens para tabela comparativa
   const allItemNames = Array.from(new Set([
     ...order.invoiceItems.map(i => i.name),
@@ -129,62 +127,21 @@ export default async function OrderDetailsPage({ params }: { params: Promise<{ i
 
       <section className="glass-panel" style={styles.card} aria-label="Comparação de Itens">
         <h2 style={styles.sectionTitle}>Comparação de Itens</h2>
-        <table style={styles.table}>
-          <thead>
-            <tr>
-              <th style={styles.th}>Produto</th>
-              <th style={styles.th}>Faturado (Nota)</th>
-              <th style={styles.th}>Detectado (Foto)</th>
-              <th style={styles.th}>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {comparison.map((item, idx) => (
-              <tr key={idx} style={styles.tr}>
-                <td style={styles.tdItem}>{item.name}</td>
-                <td style={styles.tdItem}>{item.invQtd}</td>
-                <td style={styles.tdItem}>{item.detQtd}</td>
-                <td style={styles.tdItem}>
-                  {item.status === 'ok' && <span style={styles.statusOk}>✅ OK</span>}
-                  {item.status === 'faltando' && <span style={styles.statusAlert}>❌ Faltando ({item.invQtd - item.detQtd})</span>}
-                  {item.status === 'sobrando' && <span style={styles.statusWarn}>⚠️ Sobrando ({item.detQtd - item.invQtd})</span>}
-                </td>
-              </tr>
-            ))}
-            {comparison.length === 0 && (
-              <tr><td colSpan={4} style={styles.textMuted}>Nenhum item extraído.</td></tr>
-            )}
-          </tbody>
-        </table>
+        <OrderDetailsTable comparison={comparison} />
       </section>
 
-      <div style={{...styles.grid, marginTop: 'var(--spacing-2xl)'}}>
-        {/* Imagens Originais */}
-        <section style={styles.column} aria-label="Fotos das Notas">
+      <div style={{marginTop: 'var(--spacing-2xl)'}}>
+        <section aria-label="Fotos do Pedido">
           <div className="glass-panel" style={styles.card}>
-            <h2 style={styles.sectionTitle}>Fotos das Notas Fiscais</h2>
+            <h2 style={styles.sectionTitle}>Imagens do Pedido</h2>
             <div style={styles.imageGrid}>
-              {invoiceImages.map(img => (
+              {resolvedImages.map(img => (
                 <div key={img.id} style={{...styles.imageContainer, position: 'relative'}}>
-                  <ClickableImage src={img.signedUrl} alt="Nota Fiscal" style={styles.image} />
+                  <ClickableImage src={img.signedUrl} alt="Imagem do pedido" style={styles.image} />
                   {canDeletePhotos && <DeleteImageButton imageId={img.id} />}
                 </div>
               ))}
-              {invoiceImages.length === 0 && <p style={styles.textMuted}>Nenhuma foto encontrada.</p>}
-            </div>
-          </div>
-        </section>
-        <section style={styles.column} aria-label="Fotos dos Produtos">
-          <div className="glass-panel" style={styles.card}>
-            <h2 style={styles.sectionTitle}>Fotos dos Produtos</h2>
-            <div style={styles.imageGrid}>
-              {productImages.map(img => (
-                <div key={img.id} style={{...styles.imageContainer, position: 'relative'}}>
-                  <ClickableImage src={img.signedUrl} alt="Produto" style={styles.image} />
-                  {canDeletePhotos && <DeleteImageButton imageId={img.id} />}
-                </div>
-              ))}
-              {productImages.length === 0 && <p style={styles.textMuted}>Nenhuma foto encontrada.</p>}
+              {resolvedImages.length === 0 && <p style={styles.textMuted}>Nenhuma foto encontrada.</p>}
             </div>
           </div>
         </section>

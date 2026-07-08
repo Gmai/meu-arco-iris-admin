@@ -3,14 +3,49 @@ import prisma from "@/lib/prisma";
 import Link from "next/link";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
+import { DashboardFilters } from "@/components/DashboardFilters";
+import { Pagination } from "@/components/Pagination";
+import { SortableServerHeader } from "@/components/SortableServerHeader";
 
-export default async function DashboardPage() {
+export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ search?: string, status?: string, page?: string, limit?: string, sortField?: string, sortOrder?: string }> }) {
   const session = await getServerSession(authOptions);
   const isAdmin = (session?.user as any)?.role === 'ADMIN';
 
-  const orders = await prisma.order.findMany({
-    orderBy: { createdAt: 'desc' }
-  });
+  const params = await searchParams;
+  const search = params?.search || "";
+  const status = params?.status || "";
+  
+  const page = parseInt(params?.page || "1", 10);
+  const limit = parseInt(params?.limit || "20", 10);
+  const skip = (page - 1) * limit;
+  
+  const sortField = params?.sortField || "createdAt";
+  const sortOrder = params?.sortOrder === "asc" ? "asc" : "desc";
+
+  const whereClause: any = {};
+
+  if (search) {
+    whereClause.OR = [
+      { orderNumber: { contains: search, mode: 'insensitive' } },
+      { customerName: { contains: search, mode: 'insensitive' } }
+    ];
+  }
+
+  if (status) {
+    whereClause.status = status;
+  }
+
+  const [totalItems, orders] = await prisma.$transaction([
+    prisma.order.count({ where: whereClause }),
+    prisma.order.findMany({
+      where: whereClause,
+      orderBy: { [sortField]: sortOrder },
+      skip,
+      take: limit,
+    })
+  ]);
+
+  const totalPages = Math.ceil(totalItems / limit);
 
   return (
     <main className="container">
@@ -26,17 +61,7 @@ export default async function DashboardPage() {
         )}
       </header>
 
-      <section style={styles.filterSection} aria-label="Filtros de busca">
-        <input style={styles.filterInput} type="text" placeholder="Buscar por número do pedido..." aria-label="Buscar por número do pedido" />
-        <input style={styles.filterInput} type="text" placeholder="Buscar por cliente..." aria-label="Buscar por cliente" />
-        <select style={styles.filterSelect} aria-label="Filtrar por status">
-          <option value="">Todos os status</option>
-          <option value="VALID">Válidos</option>
-          <option value="DIVERGENT">Com Divergência</option>
-          <option value="PENDING">Pendentes</option>
-        </select>
-        <button style={styles.filterButton}>Filtrar</button>
-      </section>
+      <DashboardFilters initialSearch={search} initialStatus={status} />
 
       <section className="glass-panel" style={styles.card}>
         {orders.length === 0 ? (
@@ -44,23 +69,25 @@ export default async function DashboardPage() {
             Nenhum pedido validado ainda. Vá para a aba "Novo Pedido" para começar!
           </div>
         ) : (
-          <table style={styles.table}>
+          <table className="responsive-table" style={styles.table}>
             <thead>
               <tr>
-                <th style={styles.th}>Número</th>
-                <th style={styles.th}>Cliente</th>
-                <th style={styles.th}>Data</th>
-                <th style={styles.th}>Status</th>
+                <SortableServerHeader label="Número" field="orderNumber" />
+                <SortableServerHeader label="Cliente" field="customerName" />
+                <SortableServerHeader label="Data de Registro" field="createdAt" />
+                <SortableServerHeader label="Data do Pedido" field="date" />
+                <SortableServerHeader label="Status" field="status" />
                 <th style={styles.th}>Ações</th>
               </tr>
             </thead>
             <tbody>
               {orders.map(order => (
                 <tr key={order.id} style={styles.tr}>
-                  <td style={styles.td}>{order.orderNumber || 'N/A'}</td>
-                  <td style={styles.td}>{order.customerName || 'N/A'}</td>
-                  <td style={styles.td}>{order.date ? order.date.toLocaleDateString('pt-BR') : 'N/A'}</td>
-                  <td style={styles.td}>
+                  <td data-label="Número" style={styles.td}>{order.orderNumber || 'N/A'}</td>
+                  <td data-label="Cliente" style={styles.td}>{order.customerName || 'N/A'}</td>
+                  <td data-label="Data de Registro" style={styles.td}>{new Date(order.createdAt).toLocaleDateString('pt-BR')}</td>
+                  <td data-label="Data do Pedido" style={styles.td}>{order.date ? order.date.toLocaleDateString('pt-BR') : 'N/A'}</td>
+                  <td data-label="Status" style={styles.td}>
                     <span style={{
                       ...styles.badge, 
                       backgroundColor: order.status === 'VALID' ? 'rgba(34, 197, 94, 0.1)' : order.status === 'DIVERGENT' ? 'rgba(239, 68, 68, 0.1)' : 'var(--slate-100)',
@@ -69,7 +96,7 @@ export default async function DashboardPage() {
                       {order.status === 'VALID' ? 'VÁLIDO' : order.status === 'DIVERGENT' ? 'DIVERGENTE' : order.status}
                     </span>
                   </td>
-                  <td style={styles.td}>
+                  <td data-label="Ações" style={styles.td}>
                     <Link href={`/dashboard/${order.id}`} style={styles.actionBtn}>Detalhes</Link>
                   </td>
                 </tr>
@@ -78,6 +105,10 @@ export default async function DashboardPage() {
           </table>
         )}
       </section>
+
+      {totalPages > 1 && (
+        <Pagination currentPage={page} totalPages={totalPages} limit={limit} />
+      )}
     </main>
   );
 }
@@ -111,40 +142,6 @@ const styles = {
   card: {
     borderRadius: '12px',
     overflow: 'hidden',
-  },
-  filterSection: {
-    display: 'flex',
-    gap: 'var(--spacing-md)',
-    marginBottom: 'var(--spacing-2xl)',
-    flexWrap: 'wrap' as const,
-  },
-  filterInput: {
-    padding: 'var(--spacing-md)',
-    borderRadius: '8px',
-    border: '1px solid var(--border)',
-    flex: 1,
-    minWidth: '200px',
-    outline: 'none',
-    backgroundColor: 'transparent',
-    color: 'var(--foreground)',
-  },
-  filterSelect: {
-    padding: 'var(--spacing-md)',
-    borderRadius: '8px',
-    border: '1px solid var(--border)',
-    minWidth: '150px',
-    outline: 'none',
-    backgroundColor: 'transparent',
-    color: 'var(--foreground)',
-  },
-  filterButton: {
-    backgroundColor: 'var(--primary)',
-    color: 'white',
-    padding: 'var(--spacing-md) var(--spacing-xl)',
-    borderRadius: '8px',
-    border: 'none',
-    fontWeight: '600',
-    cursor: 'pointer',
   },
   emptyState: {
     padding: 'var(--spacing-3xl) var(--spacing-xl)',
