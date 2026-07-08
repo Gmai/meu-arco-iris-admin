@@ -15,6 +15,12 @@ export default function AdminUsersPage() {
   const [role, setRole] = useState("EMPLOYEE");
   const [isCreating, setIsCreating] = useState(false);
 
+  // Form Edição
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [editEmail, setEditEmail] = useState("");
+  const [editPassword, setEditPassword] = useState("");
+  const [isUpdating, setIsUpdating] = useState(false);
+
   useEffect(() => {
     fetchUsers();
   }, []);
@@ -81,6 +87,35 @@ export default function AdminUsersPage() {
     }
   };
 
+  const startEditing = (u: any) => {
+    setEditingUserId(u.id);
+    setEditEmail(u.email);
+    setEditPassword(""); // Nunca mostramos a senha antiga
+  };
+
+  const cancelEditing = () => {
+    setEditingUserId(null);
+  };
+
+  const handleUpdateUser = async (userId: string) => {
+    setIsUpdating(true);
+    try {
+      const res = await fetch(`/api/users/${userId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: editEmail, password: editPassword })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Falha ao atualizar");
+      setEditingUserId(null);
+      fetchUsers();
+    } catch(err: any) {
+      alert(err.message);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
   if (loading) return <div className="container" style={{padding: '2rem'}}>Carregando...</div>;
   if (error) return <div className="container" style={{padding: '2rem', color: 'red'}}>{error}</div>;
 
@@ -131,6 +166,7 @@ export default function AdminUsersPage() {
                 <th style={styles.th}>Nome</th>
                 <th style={styles.th}>Papel</th>
                 <th style={styles.th}>Permissões Extras (Funcionários)</th>
+                <th style={styles.th}>Ações</th>
               </tr>
             </thead>
             <tbody>
@@ -141,8 +177,32 @@ export default function AdminUsersPage() {
                 return (
                   <tr key={u.id} style={{ borderBottom: '1px solid var(--border)' }}>
                     <td style={styles.td}>
-                      <div style={{fontWeight: 600}}>{u.name || 'Sem nome'}</div>
-                      <div style={{fontSize: '0.75rem', color: 'var(--text-muted)'}}>{u.email}</div>
+                      {editingUserId === u.id ? (
+                        <div style={{display: 'flex', flexDirection: 'column', gap: '0.5rem', minWidth: '200px'}}>
+                          <input 
+                            style={{...styles.input, padding: '0.5rem', fontSize: '0.875rem'}} 
+                            type="email" 
+                            value={editEmail} 
+                            onChange={(e) => setEditEmail(e.target.value)} 
+                          />
+                          <input 
+                            style={{...styles.input, padding: '0.5rem', fontSize: '0.875rem'}} 
+                            type="password" 
+                            placeholder="Nova senha (vazio p/ manter)" 
+                            value={editPassword} 
+                            onChange={(e) => setEditPassword(e.target.value)} 
+                          />
+                          <div style={{display: 'flex', gap: '0.5rem'}}>
+                            <button onClick={() => handleUpdateUser(u.id)} disabled={isUpdating} style={{...styles.actionBtn, fontWeight: 700}}>Salvar</button>
+                            <button onClick={cancelEditing} disabled={isUpdating} style={{...styles.actionBtn, color: 'var(--text-muted)'}}>Cancelar</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <div style={{fontWeight: 600}}>{u.name || 'Sem nome'}</div>
+                          <div style={{fontSize: '0.75rem', color: 'var(--text-muted)'}}>{u.email}</div>
+                        </>
+                      )}
                     </td>
                     <td style={styles.td}>
                       <span style={{
@@ -177,6 +237,11 @@ export default function AdminUsersPage() {
                         </div>
                       )}
                     </td>
+                    <td style={styles.td}>
+                      {editingUserId !== u.id && (
+                        <button onClick={() => startEditing(u)} style={styles.actionBtn}>Editar</button>
+                      )}
+                    </td>
                   </tr>
                 );
               })}
@@ -204,5 +269,6 @@ const styles = {
   submitButton: { width: '100%', backgroundColor: 'var(--primary)', color: 'white', padding: 'var(--spacing-md)', borderRadius: '8px', border: 'none', fontSize: '1rem', fontWeight: '600', cursor: 'pointer', marginTop: 'var(--spacing-sm)' },
   
   th: { padding: 'var(--spacing-md)', color: 'var(--text-muted)', fontSize: '0.875rem', fontWeight: '600', backgroundColor: 'rgba(255,255,255,0.05)' },
-  td: { padding: 'var(--spacing-md)' }
+  td: { padding: 'var(--spacing-md)' },
+  actionBtn: { background: 'none', border: 'none', color: 'var(--primary-light)', cursor: 'pointer', fontSize: '0.875rem' }
 };

@@ -37,8 +37,19 @@ export async function POST(request: Request) {
     const savedImages: { type: string; url: string; base64: string; mimeType: string }[] = [];
     const bucket = storage.bucket(bucketName);
     
+    // Configurações de Segurança
+    const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic'];
+    const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
     // Função auxiliar para salvar no Cloud Storage
     const processFile = async (file: File, type: string) => {
+      if (!ALLOWED_MIME_TYPES.includes(file.type)) {
+        throw new Error(`Tipo de arquivo não permitido: ${file.name}. Apenas imagens são aceitas.`);
+      }
+      if (file.size > MAX_FILE_SIZE) {
+        throw new Error(`Arquivo muito grande: ${file.name}. O tamanho máximo é 10MB.`);
+      }
+
       const bytes = await file.arrayBuffer();
       const buffer = Buffer.from(bytes);
       const filename = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '')}`;
